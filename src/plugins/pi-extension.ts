@@ -27,23 +27,48 @@ interface PiTool {
   ): Promise<{ content: Array<{ type: "text"; text: string }> }>;
 }
 
+type Delivery = "steer" | "followUp";
+
 interface PiAPI {
   sendUserMessage(text: string): void;
+  sendMessage(text: string, options?: { deliveryMode?: Delivery; triggerTurn?: boolean }): void;
   registerTool(tool: PiTool): void;
   registerCommand(name: string, def: { description: string; handler(args: string): Promise<void> }): void;
+}
+
+// Wire format: JSON envelope so the receiver can honour the sender's delivery preference.
+// Plain strings (legacy / non-chitchat) are treated as "steer".
+interface Envelope {
+  delivery: Delivery;
+  text: string;
+}
+
+function encode(text: string, delivery: Delivery): string {
+  return JSON.stringify({ delivery, text } satisfies Envelope);
+}
+
+function decode(raw: string): Envelope {
+  try {
+    const parsed = JSON.parse(raw) as Envelope;
+    if (parsed.text && parsed.delivery) return parsed;
+  } catch { /* fall through */ }
+  return { delivery: "steer", text: raw };
 }
 
 export default async function (pi: PiAPI) {
   // ── gRPC init ────────────────────────────────────────────────────────────────
 
-  await init((from, message) => {
-    pi.sendUserMessage(
+  await init((from, raw) => {
+    const { delivery, text } = decode(raw);
+    const prompt =
       `[chitchat — message from agent "${from}"]\n\n` +
-      `${message}\n\n` +
+      `${text}\n\n` +
       `---\n` +
       `If this requires a response or clarification, send it back to "${from}" ` +
-      `using chitchat_send_message — your direct output is not visible to them.`
-    );
+      `using chitchat_send_message — your direct output is not visible to them.`;
+
+    // Use sendMessage so it works whether the agent is idle or mid-turn.
+    pi.sendMessage(prompt, { deliveryMode: delivery, triggerTurn: true });
   });
 
   // ── Tools ────────────────────────────────────────────────────────────────────
@@ -79,19 +104,27 @@ export default async function (pi: PiAPI) {
       "The message is injected as a user message in the recipient's conversation. " +
       "Use this to deliver results, answers, or clarification questions — " +
       "the recipient cannot see your direct output, only what you send via chitchat. " +
-      "Any reply arrives in your conversation the same way, as an injected user message.",
+      "Any reply arrives in your conversation the same way, as an injected user message. " +
+      "delivery: 'steer' (default) interrupts the recipient after their current tool calls; " +
+      "'followUp' waits until they are fully idle.",
     parameters: {
       type: "object",
       properties: {
         to: { type: "string", description: "Session name of the recipient (from chitchat_list_sessions)." },
         message: { type: "string", description: "The message to send." },
+        delivery: {
+          type: "string",
+          enum: ["steer", "followUp"],
+          description: "When to inject the message. 'steer' (default): after the recipient's current tool calls. 'followUp': once they are fully idle.",
+        },
       },
       required: ["to", "message"],
     },
-    async execute(_id, { to, message }) {
+    async execute(_id, { to, message, delivery }) {
       if (!client) return { content: [{ type: "text", text: "chitchat not connected." }] };
-      await client.sendMessage(to, message);
-      return { content: [{ type: "text", text: `Sent to "${to}". Their reply will arrive as a user message.` }] };
+      const d: Delivery = delivery === "followUp" ? "followUp" : "steer";
+      await client.sendMessage(to, encode(message, d));
+      return { content: [{ type: "text", text: `Sent to "${to}" (delivery: ${d}). Their reply will arrive as a user message.` }] };
     },
   });
 
