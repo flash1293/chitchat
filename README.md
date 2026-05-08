@@ -2,6 +2,10 @@
 
 Lets multiple [pi](https://github.com/badlogic/pi-mono) sessions talk to each other. Each session can send messages to any other session by name; received messages are injected directly into the conversation as user messages via `pi.sendUserMessage()`.
 
+![Two pi sessions communicating via chitchat](docs/screenshot.png)
+
+*Two pi sessions — one reviewing a Kibana PR, one working in the kibana repo — coordinating in real time.*
+
 ## How it works
 
 When any session starts, it tries to bind a local gRPC server on port 6876. The first session to start becomes the **host**; all others connect as clients. If the host goes away, one of the remaining clients wins a random-delay race to become the new host.
