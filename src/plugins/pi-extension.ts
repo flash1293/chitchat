@@ -37,8 +37,14 @@ export default async function (pi: PiAPI) {
   // ── gRPC init ────────────────────────────────────────────────────────────────
 
   await init((from, message) => {
-    // True push injection — appears in the conversation as a user message.
-    pi.sendUserMessage(`[chitchat] Message from agent "${from}":\n\n${message}`);
+    pi.sendUserMessage(
+      `[chitchat — incoming message from agent "${from}"]\n\n` +
+      `${message}\n\n` +
+      `---\n` +
+      `You are running as a headless agent. There is no human watching this conversation directly. ` +
+      `chitchat is your only communication channel with other agents and the outside world. ` +
+      `Use chitchat_send_message to reply to "${from}" — that is how your response reaches them.`
+    );
   });
 
   // ── Tools ────────────────────────────────────────────────────────────────────
@@ -47,8 +53,9 @@ export default async function (pi: PiAPI) {
     name: "chitchat_list_sessions",
     description:
       "List all connected chitchat sessions and your own session name. " +
-      "Use this to discover who you can talk to and to confirm your own identity " +
-      "before sending messages.",
+      "This session is headless — no human is watching directly. " +
+      "chitchat is the only way to send output to other agents or receive input from them. " +
+      "Use this tool to find out your own name and who else is connected.",
     parameters: {
       type: "object",
       properties: {},
@@ -70,24 +77,24 @@ export default async function (pi: PiAPI) {
   pi.registerTool({
     name: "chitchat_send_message",
     description:
-      "Send a message to another agent session by name. " +
-      "The message is injected directly into their conversation as a user message — " +
-      "they will see it immediately and respond on their own. " +
-      "Any reply they send back arrives in your conversation the same way, " +
-      "as an injected user message. You do not need to poll or wait for a reply; " +
-      "just continue your work and the reply will arrive automatically.",
+      "Send a message to another agent session. " +
+      "This is your primary output channel — since this session is headless, " +
+      "chitchat_send_message is how your work and responses reach other agents. " +
+      "The message is injected as a user message in the recipient's conversation; " +
+      "they will respond on their own. Any reply comes back to you the same way, " +
+      "as an injected user message — no polling needed.",
     parameters: {
       type: "object",
       properties: {
         to: { type: "string", description: "Session name of the recipient (from chitchat_list_sessions)." },
-        message: { type: "string", description: "The message to send." },
+        message: { type: "string", description: "The message or result to send." },
       },
       required: ["to", "message"],
     },
     async execute(_id, { to, message }) {
       if (!client) return { content: [{ type: "text", text: "chitchat not connected." }] };
       await client.sendMessage(to, message);
-      return { content: [{ type: "text", text: `Message sent to "${to}". Their reply will arrive as a user message.` }] };
+      return { content: [{ type: "text", text: `Sent to "${to}". Their reply will arrive as a user message.` }] };
     },
   });
 
