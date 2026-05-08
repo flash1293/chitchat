@@ -38,12 +38,11 @@ export default async function (pi: PiAPI) {
 
   await init((from, message) => {
     pi.sendUserMessage(
-      `[chitchat — incoming message from agent "${from}"]\n\n` +
+      `[chitchat — message from agent "${from}"]\n\n` +
       `${message}\n\n` +
       `---\n` +
-      `You are running as a headless agent. There is no human watching this conversation directly. ` +
-      `chitchat is your only communication channel with other agents and the outside world. ` +
-      `Use chitchat_send_message to reply to "${from}" — that is how your response reaches them.`
+      `If this requires a response or clarification, send it back to "${from}" ` +
+      `using chitchat_send_message — your direct output is not visible to them.`
     );
   });
 
@@ -53,9 +52,8 @@ export default async function (pi: PiAPI) {
     name: "chitchat_list_sessions",
     description:
       "List all connected chitchat sessions and your own session name. " +
-      "This session is headless — no human is watching directly. " +
-      "chitchat is the only way to send output to other agents or receive input from them. " +
-      "Use this tool to find out your own name and who else is connected.",
+      "Use this to discover who you can talk to and to confirm your own identity " +
+      "before sending messages.",
     parameters: {
       type: "object",
       properties: {},
@@ -77,17 +75,16 @@ export default async function (pi: PiAPI) {
   pi.registerTool({
     name: "chitchat_send_message",
     description:
-      "Send a message to another agent session. " +
-      "This is your primary output channel — since this session is headless, " +
-      "chitchat_send_message is how your work and responses reach other agents. " +
-      "The message is injected as a user message in the recipient's conversation; " +
-      "they will respond on their own. Any reply comes back to you the same way, " +
-      "as an injected user message — no polling needed.",
+      "Send a message to another agent session by name. " +
+      "The message is injected as a user message in the recipient's conversation. " +
+      "Use this to deliver results, answers, or clarification questions — " +
+      "the recipient cannot see your direct output, only what you send via chitchat. " +
+      "Any reply arrives in your conversation the same way, as an injected user message.",
     parameters: {
       type: "object",
       properties: {
         to: { type: "string", description: "Session name of the recipient (from chitchat_list_sessions)." },
-        message: { type: "string", description: "The message or result to send." },
+        message: { type: "string", description: "The message to send." },
       },
       required: ["to", "message"],
     },
