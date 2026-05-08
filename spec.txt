@@ -1,0 +1,21 @@
+chitchat
+
+Chitchat is a plugin for claude code, opencode and pi that makes it possible for agent sessions to "talk" to each other.
+
+The setup works like this:
+In each harness you install the plugin (works slightly differently in all cases, but always typescript based).
+When a session of one of the harnessees starts up, it checks whether a defined port (68768 by default) is already occupied or not.
+
+If not, that session becomes the "host" that opens a server on that port that hosts a simple grpc service to exchange messages.
+When registering, each session has a name (which can be changed later), which stays active for bidirectional streaming. In this stream, the client can>
+* Request the list of all listening sessions
+* Send a message to another session by name
+* Receive messages from other sessions from the server
+
+listing the sessions and sending messages are exposed as tools to the agent running in the session. recevied messages are queued as prompts just like they would have come from the user, with some explanation in the prompt where it's coming from.
+
+After the server is up on the port, all sessions connect to it as client to exchange messages. If a client disconnects, it's removed from the list of listening sessions. if the server becomes unavailable, all clients wait for a random amount of time and then attempt to become the server themselves (one will win, and everyone connects to that one again)
+
+The plugin also adds a command to the agent `/chitchat <name>` to change the name of the session (by default it's the folder you started the session from)
+
+

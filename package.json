@@ -1,0 +1,19 @@
+{
+  "name": "chitchat",
+  "version": "0.1.0",
+  "description": "Inter-agent communication for pi sessions via a local gRPC mesh",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "CHITCHAT_PORT=16876 npx tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
